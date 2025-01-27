@@ -1,6 +1,6 @@
 // Twitch API credentials
-const clientId = 'q77cp5jqv5ploqgotvfvbj2b0ngcl9'; // Replace with your Twitch Client ID
-const accessToken = 'iwkve216m9wq0xeoqwvy0mkplo4ha7'; // Replace with your Twitch Access Token
+const clientId = ''; // Replace with your Twitch Client ID
+const accessToken = ''; // Replace with your Twitch Access Token
 
 const streamsContainer = document.getElementById('streamsContainer');
 
