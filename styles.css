@@ -1,0 +1,75 @@
+body {
+  font-family: 'MS Sans Serif', 'Arial', sans-serif;
+  background-color: #008080; /* Classic Windows 95 teal background */
+  color: #000;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  background-color: #c0c0c0; /* Gray background */
+  padding: 10px;
+  border-bottom: 2px solid #000;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: bold;
+  color: #000;
+}
+
+#streamsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 20px;
+}
+
+.streamCard {
+  background-color: #c0c0c0; /* Gray background */
+  border: 2px solid #000; /* Black border */
+  border-top-color: #fff; /* White top border for 3D effect */
+  border-left-color: #fff; /* White left border for 3D effect */
+  border-right-color: #808080; /* Dark gray right border for 3D effect */
+  border-bottom-color: #808080; /* Dark gray bottom border for 3D effect */
+  border-radius: 0; /* No rounded corners */
+  width: 300px;
+  text-align: center;
+  padding: 15px;
+  box-shadow: 2px 2px 0 #000; /* Shadow for depth */
+}
+
+.streamCard h3 {
+  margin: 10px 0;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.streamCard h3 a {
+  color: #000; /* Black text */
+  text-decoration: none;
+}
+
+.streamCard h3 a:hover {
+  color: #000080; /* Dark blue on hover */
+}
+
+.streamCard p {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.streamCard .online {
+  color: #008000; /* Green for online status */
+}
+
+.streamCard .offline {
+  color: #800000; /* Red for offline status */
+}
+
+.streamCard img {
+  border: 2px solid #000; /* Black border for images */
+  margin-top: 10px;
+}
