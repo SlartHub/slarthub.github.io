@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WAV Studio Web</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Hidden file inputs -->
+  <input type="file" id="file-input" accept=".wav" hidden>
+  <input type="file" id="compare-input" accept=".wav" multiple hidden>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button id="btn-open" class="primary">Open WAV</button>
+    <button id="btn-compare" class="compare">Compare V1/V2</button>
+    <button id="btn-dashboard" disabled>Dashboard</button>
+    <button id="btn-export" disabled>Export TXT</button>
+    <button id="btn-ai" class="ai" disabled>Copy AI Prompt</button>
+    <span id="status" class="status">Drop a WAV file to begin</span>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-view="drop-view">Home</button>
+    <button class="tab-btn" data-view="log-view">Analysis Log</button>
+    <button class="tab-btn" data-view="dashboard-view">Dashboard</button>
+  </div>
+
+  <!-- Drop view -->
+  <div id="drop-view" class="view active">
+    <div id="drop-zone" class="drop-zone">
+      <div class="icon">&#9835;</div>
+      <h2>Drop WAV file here</h2>
+      <p>
+        Or click to browse<br>
+        Drop 2 files to compare V1 vs V2<br><br>
+        Supports 16-bit, 24-bit, and 32-bit PCM WAV<br>
+        All analysis runs locally in your browser &mdash; nothing is uploaded
+      </p>
+    </div>
+  </div>
+
+  <!-- Log view -->
+  <div id="log-view" class="view">
+    <pre id="log" class="log-output"></pre>
+  </div>
+
+  <!-- Dashboard view -->
+  <div id="dashboard-view" class="view">
+    <div id="dashboard-content"></div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
