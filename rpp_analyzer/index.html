@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎛 Reaper RPP Analyzer</title>
+<style>
+/* ── Reset & base ────────────────────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#1a1a2e;--card:#16213e;--text:#e0e0e0;--muted:#8892a0;
+  --accent:#e67e22;--accent2:#f39c12;--border:#2a3a5e;
+  --green:#27ae60;--red:#e74c3c;--blue:#3498db;--cyan:#00cec9;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter','Segoe UI',-apple-system,sans-serif;line-height:1.6;min-height:100vh}
+
+/* ── Landing page ────────────────────────────────────────────────────────── */
+#landing{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:40px 20px}
+.landing-header{text-align:center;margin-bottom:48px}
+.landing-header h1{font-size:2.6rem;font-weight:800;color:var(--accent);letter-spacing:-1px}
+.landing-header p{color:var(--muted);font-size:1rem;margin-top:10px;max-width:500px}
+.drop-card{background:var(--card);border:2px dashed var(--border);border-radius:20px;padding:60px 80px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;max-width:600px;width:100%}
+.drop-card:hover,.drop-card.dragover{border-color:var(--accent);background:#1a2744}
+.drop-icon{font-size:4rem;margin-bottom:20px;display:block;opacity:.7}
+.drop-card h2{font-size:1.3rem;font-weight:600;color:var(--text);margin-bottom:8px}
+.drop-card p{color:var(--muted);font-size:.9rem;margin-bottom:24px}
+.btn-row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:4px}
+.btn{padding:10px 22px;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;border:none;transition:opacity .2s}
+.btn:hover{opacity:.85}
+.btn-primary{background:var(--accent);color:var(--bg)}
+.btn-secondary{background:transparent;border:1px solid var(--border);color:var(--muted)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.file-list{margin-top:20px;text-align:left;max-height:200px;overflow-y:auto}
+.file-list-item{font-size:.82rem;color:var(--muted);padding:4px 0;border-bottom:1px solid var(--border)44}
+.file-list-item span{color:var(--text)}
+#analyze-btn{display:none;margin-top:20px;width:100%;padding:14px;font-size:1rem}
+.landing-footer{margin-top:32px;text-align:center;color:var(--muted);font-size:.8rem}
+.landing-footer a{color:var(--accent);text-decoration:none}
+
+/* ── Progress overlay ────────────────────────────────────────────────────── */
+#progress-overlay{display:none;position:fixed;inset:0;background:var(--bg);z-index:1000;flex-direction:column;align-items:center;justify-content:center}
+#progress-overlay.active{display:flex}
+.progress-title{font-size:1.4rem;font-weight:700;color:var(--accent);margin-bottom:8px}
+.progress-sub{color:var(--muted);font-size:.9rem;margin-bottom:32px;max-width:400px;text-align:center}
+.progress-bar-wrap{width:400px;max-width:90vw;background:var(--card);border-radius:99px;height:8px;overflow:hidden}
+.progress-bar{height:100%;background:var(--accent);border-radius:99px;transition:width .1s linear;width:0%}
+.progress-file{margin-top:14px;font-size:.8rem;color:var(--muted);max-width:400px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.progress-count{margin-top:6px;font-size:.85rem;color:var(--accent2);font-weight:600}
+
+/* ── Dashboard (sidebar layout) ──────────────────────────────────────────── */
+#dashboard{display:none}
+.sidebar{position:fixed;top:0;left:0;width:260px;height:100vh;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:200}
+.sidebar-header{padding:16px 14px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sidebar-header h1{font-size:.95rem;font-weight:700;color:var(--accent);margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-search{width:100%;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.82rem;outline:none}
+.sidebar-search:focus{border-color:var(--accent)}
+.sidebar-search::placeholder{color:var(--muted)}
+.sidebar-count{font-size:.72rem;color:var(--muted);margin-top:6px}
+.sidebar-list{flex:1;overflow-y:auto;padding:6px 0}
+.sidebar-item{padding:6px 14px;cursor:pointer;font-size:.82rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s,color .15s;border-left:3px solid transparent}
+.sidebar-item:hover{background:var(--bg);color:var(--text)}
+.sidebar-item.active{background:#e67e2218;color:var(--accent);border-left-color:var(--accent);font-weight:600}
+.sidebar-item.comparison{color:var(--accent2);font-weight:600;border-bottom:1px solid var(--border);padding:8px 14px;margin-bottom:2px}
+.sidebar-item.comparison.active{background:#f39c1218;border-left-color:var(--accent2)}
+.sidebar-item.hidden,.sidebar-item.filter-hidden{display:none}
+.sidebar-list::-webkit-scrollbar{width:6px}
+.sidebar-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.sidebar-back{padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0}
+.sidebar-back a{font-size:.78rem;color:var(--muted);text-decoration:none;cursor:pointer}
+.sidebar-back a:hover{color:var(--accent)}
+.main-content{margin-left:260px;padding:24px 32px}
+.single-content{max-width:1400px;margin:0 auto;padding:24px}
+.project-panel{display:none}.project-panel.active{display:block}
+
+/* ── Sections ────────────────────────────────────────────────────────────── */
+.section{margin-bottom:28px}
+.section-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:12px 16px;background:var(--card);border-radius:10px 10px 0 0;border:1px solid var(--border);border-bottom:none;user-select:none}
+.section-header h2{font-size:1.15rem;font-weight:600;color:var(--accent)}
+.toggle-icon{color:var(--muted);transition:transform .2s;font-size:.8rem}
+.section.collapsed .toggle-icon{transform:rotate(-90deg)}
+.section-body{padding:20px;background:var(--card);border-radius:0 0 10px 10px;border:1px solid var(--border);border-top:none;overflow:hidden}
+.section.collapsed .section-body{max-height:0;padding:0 20px;overflow:hidden}
+
+/* ── Stat cards ──────────────────────────────────────────────────────────── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;transition:border-color .2s}
+.stat-card:hover{border-color:#e67e2244}
+.stat-value{font-size:1.5rem;font-weight:700;word-break:break-word}
+.stat-label{font-size:.8rem;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.stat-sub{font-size:.75rem;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Charts ──────────────────────────────────────────────────────────────── */
+.chart-container{margin:16px 0;border-radius:8px;overflow:hidden}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+.table-wrap{overflow-x:auto}
+.data-table{width:100%;border-collapse:collapse;font-size:.85rem}
+.data-table th,.data-table td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.data-table th{color:var(--accent);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px}
+.data-table tr:hover td{background:var(--bg)88}
+
+/* ── Collapsible details ─────────────────────────────────────────────────── */
+.detail-block{margin-top:14px}
+.detail-block summary{cursor:pointer;color:var(--accent);font-size:.9rem;padding:8px 0}
+.detail-block summary:hover{text-decoration:underline}
+.detail-block ul{list-style:none;padding:8px 0;columns:2}
+.detail-block li{padding:3px 0;font-size:.85rem;color:var(--muted)}
+.empty-message{color:var(--muted);font-style:italic;padding:12px 0}
+
+/* ── Filter panel ────────────────────────────────────────────────────────── */
+.filter-toggle{position:fixed;top:10px;right:10px;z-index:210;background:var(--card);border:1px solid var(--border);color:var(--accent);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;transition:background .2s}
+.filter-toggle:hover{background:var(--bg)}
+.badge{background:var(--accent);color:var(--bg);padding:1px 7px;border-radius:10px;font-size:.75rem;margin-left:6px;display:none}
+.badge.visible{display:inline}
+.filter-panel{position:fixed;top:0;right:-300px;width:300px;height:100vh;background:var(--card);border-left:1px solid var(--border);display:flex;flex-direction:column;z-index:200;transition:right .25s ease;box-shadow:-4px 0 20px rgba(0,0,0,.3)}
+.filter-panel.open{right:0}
+.filter-header{padding:16px 14px 10px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.filter-header h2{font-size:1rem;font-weight:700;color:var(--accent)}
+.filter-close{background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:4px 8px}
+.filter-close:hover{color:var(--text)}
+.filter-actions{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.filter-btn{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:.78rem;cursor:pointer;transition:border-color .2s}
+.filter-btn:hover{border-color:var(--accent)}
+.filter-btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.filter-body{flex:1;overflow-y:auto;padding:10px 14px}
+.filter-body::-webkit-scrollbar{width:6px}
+.filter-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.filter-group{margin-bottom:16px}
+.filter-group-title{font-size:.78rem;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+.fg-arrow{transition:transform .2s;font-size:.65rem;color:var(--muted)}
+.filter-group.fg-collapsed .fg-arrow{transform:rotate(-90deg)}
+.filter-group.fg-collapsed .filter-group-body{display:none}
+.filter-range{margin-bottom:10px}
+.filter-range label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}
+.filter-range .range-row{display:flex;align-items:center;gap:8px}
+.range-info{font-size:.7rem;color:var(--muted);opacity:.6}
+.filter-range input[type="number"]{width:70px;padding:4px 6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.8rem;text-align:center}
+.filter-range input[type="number"]:focus{border-color:var(--accent);outline:none}
+.range-sep{color:var(--muted);font-size:.75rem}
+.filter-checkbox{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.82rem;color:var(--text)}
+.filter-checkbox input{accent-color:var(--accent)}
+.filter-select{width:100%;padding:5px 8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.8rem;margin-bottom:6px}
+.filter-select:focus{border-color:var(--accent);outline:none}
+.filter-result-count{padding:10px 14px;border-top:1px solid var(--border);font-size:.82rem;color:var(--muted);text-align:center;flex-shrink:0}
+.filter-result-count strong{color:var(--accent)}
+.exclude-list{max-height:200px;overflow-y:auto;margin-top:4px}
+.exclude-list label{display:block;padding:2px 0;font-size:.78rem;color:var(--muted);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exclude-list label:hover{color:var(--text)}
+.exclude-list input{accent-color:var(--accent);margin-right:6px}
+.exclude-search{width:100%;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:.78rem;margin-bottom:4px}
+.exclude-search:focus{border-color:var(--accent);outline:none}
+
+/* ── Toolbar (export btn) ────────────────────────────────────────────────── */
+.toolbar{display:flex;align-items:center;gap:10px;padding:12px 0 20px;border-bottom:1px solid var(--border);margin-bottom:24px;flex-wrap:wrap}
+.toolbar h1{font-size:1.4rem;font-weight:700;color:var(--accent);flex:1;min-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tool-btn{padding:7px 16px;border-radius:7px;font-size:.82rem;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--muted);transition:all .2s}
+.tool-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── Error toast ─────────────────────────────────────────────────────────── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--red);color:#fff;padding:12px 20px;border-radius:10px;font-size:.88rem;z-index:9999;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+@media(max-width:900px){
+  .chart-row{grid-template-columns:1fr}
+  .main-content{margin-left:0;padding:16px}
+  .sidebar{display:none}
+  .filter-panel,.filter-toggle{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Landing ──────────────────────────────────────────────────────────── -->
+<div id="landing">
+  <div class="landing-header">
+    <h1>🎛 Reaper RPP Analyzer</h1>
+    <p>Drop your Reaper project files and get an interactive dashboard with track stats, plugin analysis, MIDI data, automation maps and more.</p>
+  </div>
+
+  <div class="drop-card" id="drop-zone">
+    <span class="drop-icon">🎚️</span>
+    <h2>Drop .rpp files here</h2>
+    <p>Or click to browse — supports single projects and batches of hundreds</p>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">Browse Files</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('folder-input').click()">Browse Folder</button>
+    </div>
+    <div id="file-list" class="file-list" style="display:none"></div>
+    <button class="btn btn-primary" id="analyze-btn" onclick="startAnalysis()">Analyze →</button>
+  </div>
+
+  <div class="landing-footer">
+    <p>All processing is done <strong>locally in your browser</strong> — no files are uploaded anywhere.</p>
+    <p style="margin-top:6px">
+      Works with Reaper 5, 6 &amp; 7 projects &nbsp;·&nbsp;
+    </p>
+  </div>
+</div>
+
+<input type="file" id="file-input"   accept=".rpp" multiple style="display:none">
+<input type="file" id="folder-input" accept=".rpp" multiple webkitdirectory style="display:none">
+
+<!-- ── Progress ─────────────────────────────────────────────────────────── -->
+<div id="progress-overlay">
+  <div class="progress-title">Analyzing projects…</div>
+  <div class="progress-sub" id="progress-sub">Parsing files</div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+  <div class="progress-file" id="progress-file"></div>
+  <div class="progress-count" id="progress-count"></div>
+</div>
+
+<!-- ── Dashboard (injected dynamically) ──────────────────────────────────── -->
+<div id="dashboard"></div>
+
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script>
+'use strict';
+
+// ============================================================
+// 1. RPP PARSER
+// ============================================================
+function tokenize(line) {
+  const tokens = [];
+  let i = 0;
+  while (i < line.length) {
+    while (i < line.length && line.charCodeAt(i) <= 32) i++;
+    if (i >= line.length) break;
+    if (line[i] === '"') {
+      i++;
+      let s = '';
+      while (i < line.length && line[i] !== '"') {
+        if (line[i] === '\\' && i + 1 < line.length) { i++; s += line[i]; }
+        else s += line[i];
+        i++;
+      }
+      if (i < line.length) i++;
+      tokens.push(s);
+    } else {
+      let s = '';
+      while (i < line.length && line.charCodeAt(i) > 32) s += line[i++];
+      tokens.push(s);
+    }
+  }
+  return tokens;
+}
+
+function parseRppText(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  let pos = 0;
+  while (pos < lines.length && !lines[pos].trimStart().startsWith('<')) pos++;
+
+  function parseBlock() {
+    const ht = tokenize(lines[pos++].trimStart().slice(1));
+    const node = { type: (ht[0]||'').toUpperCase(), args: ht.slice(1), props: new Map(), children: [] };
+    while (pos < lines.length) {
+      const t = lines[pos].trimStart();
+      if (!t || t[0] === ';') { pos++; continue; }
+      if (t === '>') { pos++; break; }
+      if (t[0] === '<') { node.children.push(parseBlock()); continue; }
+      const toks = tokenize(t);
+      if (toks.length) {
+        const key = toks[0].toUpperCase();
+        if (!node.props.has(key)) node.props.set(key, []);
+        node.props.get(key).push(toks.slice(1));
+      }
+      pos++;
+    }
+    return node;
+  }
+  return parseBlock();
+}
+
+const getProp     = (n, k) => n.props.get(k.toUpperCase())?.[0] ?? null;
+const getAllProps  = (n, k) => n.props.get(k.toUpperCase()) ?? [];
+const getChild    = (n, t) => n.children.find(c => c.type === t.toUpperCase()) ?? null;
+const getChildren = (n, t) => n.children.filter(c => c.type === t.toUpperCase());
+
+// ============================================================
+// 2. DATA EXTRACTOR
+// ============================================================
+const _f = s => parseFloat(s) || 0;
+const _i = s => parseInt(s, 10) || 0;
+
+function colorrefToHex(n) {
+  if (!n) return '#888';
+  return '#' + [n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function linToDb(v) { return v <= 0 ? -144 : 20 * Math.log10(v); }
+
+function parsePluginName(displayName, dll) {
+  let pluginType = 'VST', name = displayName, vendor = '', isInstrument = false;
+  const m = displayName.match(/^(VST3i|VSTi|VST3|VST|CLAP|JS):\s*/i);
+  if (m) {
+    pluginType = m[1].toUpperCase(); name = displayName.slice(m[0].length);
+    isInstrument = pluginType === 'VSTI' || pluginType === 'VST3I';
+  }
+  const pm = [...name.matchAll(/\(([^)]+)\)/g)];
+  for (let j = pm.length - 1; j >= 0; j--) {
+    if (!/^\d+\s*(in|out|ch)/i.test(pm[j][1])) { vendor = pm[j][1]; break; }
+  }
+  return { displayName, name: name.replace(/\s*\([^)]+\)\s*/g,'').trim()||name.trim(),
+           vendor: vendor||'Unknown', pluginType, isInstrument, dll: dll||'' };
+}
+
+function extractMidiNotes(sourceNode) {
+  let notes = 0; const channels = new Set();
+  for (const v of getAllProps(sourceNode, 'E')) {
+    if (v.length < 3) continue;
+    const st = parseInt(v[1], 16); if (isNaN(st)) continue;
+    const vel = parseInt(v[3]||v[2]||'0', 16);
+    if (((st>>4)&0xF) === 9 && vel > 0) { notes++; channels.add(st&0xF); }
+  }
+  return { notes, channels: [...channels] };
+}
+
+function extractItems(trackNode) {
+  return getChildren(trackNode, 'ITEM').map(n => {
+    const src = getChild(n, 'SOURCE');
+    let isMidi = false, isAudio = false, midiNotes = 0, midiChannels = [];
+    if (src) {
+      const st = (src.args[0]||'').toUpperCase();
+      if (st === 'MIDI') { isMidi = true; const r = extractMidiNotes(src); midiNotes = r.notes; midiChannels = r.channels; }
+      else if (st) isAudio = true;
+    }
+    return {
+      position: _f(getProp(n,'POSITION')?.[0]),
+      length:   _f(getProp(n,'LENGTH')?.[0]),
+      isMuted:  _i(getProp(n,'MUTE')?.[0]) === 1,
+      name:     getProp(n,'NAME')?.[0] || '',
+      isMidi, isAudio, midiNotes, midiChannels,
+    };
+  });
+}
+
+function extractPlugins(fxNode) {
+  if (!fxNode) return [];
+  const plugins = [], bypasses = getAllProps(fxNode, 'BYPASS');
+  let idx = 0;
+  for (const c of fxNode.children) {
+    if (c.type === 'VST' || c.type === 'CLAP') {
+      const info = parsePluginName(c.args[0]||'', c.args[1]||'');
+      info.isBypassed = _i(bypasses[idx]?.[0]) === 1;
+      info.hasAutomation = c.children.some(ch => ch.type === 'PARMENV');
+      plugins.push(info); idx++;
+    } else if (c.type === 'JS') {
+      const sc = c.args[0]||'';
+      plugins.push({ displayName:`JS: ${sc}`, name:sc, vendor:'JSFX', pluginType:'JSFX',
+        isInstrument:false, dll:'', isBypassed:_i(bypasses[idx]?.[0])===1,
+        hasAutomation:c.children.some(ch=>ch.type==='PARMENV') });
+      idx++;
+    }
+  }
+  return plugins;
+}
+
+function extractEnvelopes(trackNode) {
+  const ENV_TYPES = new Set(['VOLENV','VOLENV2','PANENV','PANENV2','MUTEENV','PARMENV']);
+  return trackNode.children
+    .filter(c => ENV_TYPES.has(c.type))
+    .map(c => ({ name: (getProp(c,'NAME')?.[0]||c.args.join(' ')||c.type).trim(),
+                 pointCount: getAllProps(c,'PT').length }));
+}
+
+function extractProjectData(rootNode, filename) {
+  const args = rootNode.args;
+  const vs = args[1]||'', ts = parseInt(args[2]||args[args.length-1]||'0',10);
+  const tV = getProp(rootNode,'TEMPO'), srV = getProp(rootNode,'SAMPLERATE');
+  const mV = getProp(rootNode,'MASTER_VOLUME'), rV = getProp(rootNode,'RENDER_FILE');
+  const renderFile = rV?.[0]||'';
+
+  const markers = getAllProps(rootNode,'MARKER').map(v=>({id:_i(v[0]),position:_f(v[1]),name:v[2]||''}));
+
+  const tempoNode = getChild(rootNode,'TEMPOENVEX');
+  const tempoEnvelope = tempoNode ? getAllProps(tempoNode,'PT').map(v=>({time:_f(v[0]),bpm:_f(v[1])})) : [];
+
+  const tracks = []; let depth = 0;
+  for (const tn of getChildren(rootNode,'TRACK')) {
+    const isbus = _i(getProp(tn,'ISBUS')?.[0]);
+    const color = colorrefToHex(_i(getProp(tn,'PEAKCOL')?.[0]));
+    const vp = getProp(tn,'VOLPAN'), ms = getProp(tn,'MUTESOLO');
+    tracks.push({
+      name: getProp(tn,'NAME')?.[0]||'', color,
+      volumeDb: linToDb(_f(vp?.[0]??'1')), pan: _f(vp?.[1]??'0'),
+      isMuted: _i(ms?.[0])===1, isSolo: _i(ms?.[1])===1,
+      isArmed: _i(getProp(tn,'REC')?.[0])===1, isbus, nestingDepth: depth,
+      plugins:   extractPlugins(getChild(tn,'FXCHAIN')),
+      items:     extractItems(tn),
+      envelopes: extractEnvelopes(tn),
+      receives:  getAllProps(tn,'AUXRECV').length,
+    });
+    if (isbus === 1) depth++; else if (isbus === 2) depth = Math.max(0, depth-1);
+  }
+
+  let estimatedDuration = 0;
+  for (const t of tracks) for (const item of t.items) {
+    const e = item.position + item.length; if (e > estimatedDuration) estimatedDuration = e;
+  }
+
+  return {
+    filename, reaperVersion: vs.split('/')[0]||'Unknown', platform: vs.split('/')[1]||'Unknown',
+    lastSaved: ts ? new Date(ts*1000) : null,
+    tempo: _f(tV?.[0]??'120'), timeSigNum: _i(tV?.[1]??'4'), timeSigDenom: _i(tV?.[2]??'4'),
+    sampleRate: _i(srV?.[0]??'44100'), masterVolDb: linToDb(_f(mV?.[0]??'1')),
+    renderFile, wasRendered: renderFile!=='', estimatedDuration, tracks, markers, tempoEnvelope,
+  };
+}
+
+// ============================================================
+// 3. STATS ENGINE
+// ============================================================
+function formatDuration(s) {
+  if (s<=0) return '0:00';
+  const t=Math.floor(s), h=Math.floor(t/3600), m=Math.floor((t%3600)/60), sec=t%60;
+  if(h>0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+function sortObj(o) { return Object.fromEntries(Object.entries(o).sort((a,b)=>b[1]-a[1])); }
+
+function computeProjectStats(data) {
+  const allPlugins  = data.tracks.flatMap(t => t.plugins);
+  const allItems    = data.tracks.flatMap(t => t.items);
+  const midiItems   = allItems.filter(i => i.isMidi);
+  const audioItems  = allItems.filter(i => i.isAudio);
+  const lengths     = allItems.map(i=>i.length).filter(l=>l>0);
+  const allEnvs     = data.tracks.flatMap(t => t.envelopes);
+  const totalAutoPts = allEnvs.reduce((s,e)=>s+e.pointCount,0);
+
+  const pluginCtr={}, vendorCtr={}, typeCtr={};
+  const uniqueNames = new Set();
+  for (const p of allPlugins) {
+    pluginCtr[p.displayName] = (pluginCtr[p.displayName]||0)+1;
+    uniqueNames.add(p.displayName);
+    const v = p.vendor||'Unknown'; vendorCtr[v] = (vendorCtr[v]||0)+1;
+    const type = p.pluginType==='JSFX' ? 'JSFX' : p.isInstrument ? 'Instruments (VSTi)' : 'Effects (VST)';
+    typeCtr[type] = (typeCtr[type]||0)+1;
+  }
+
+  const BINS=32; const density = new Array(BINS).fill(0);
+  if (data.estimatedDuration>0 && allItems.length>0) {
+    const bs = data.estimatedDuration/BINS;
+    for (const item of allItems) {
+      const s=Math.max(0,Math.floor(item.position/bs));
+      const e=Math.min(BINS-1,Math.floor((item.position+item.length)/bs));
+      for(let b=s;b<=e;b++) density[b]++;
+    }
+  }
+
+  const totalMidiNotes = midiItems.reduce((s,i)=>s+i.midiNotes,0);
+  const totalMidiDur   = midiItems.reduce((s,i)=>s+i.length,0);
+  const midiChannels   = new Set(midiItems.flatMap(i=>i.midiChannels));
+  const longestItem    = lengths.length ? Math.max(...lengths) : 0;
+  const shortestItem   = lengths.length ? Math.min(...lengths) : 0;
+
+  return {
+    projectName:     data.filename,
+    reaperVersion:   data.reaperVersion,
+    platform:        data.platform,
+    lastSaved:       data.lastSaved ? data.lastSaved.toISOString().replace('T',' ').slice(0,16)+' UTC' : 'Unknown',
+    lastSavedRaw:    data.lastSaved ? data.lastSaved.toISOString() : '',
+    tempo:           data.tempo,
+    timeSignature:   `${data.timeSigNum}/${data.timeSigDenom}`,
+    sampleRate:      data.sampleRate,
+    estimatedDuration: data.estimatedDuration,
+    durationFormatted: formatDuration(data.estimatedDuration),
+    wasRendered:     data.wasRendered,
+    masterVolumeDb:  data.masterVolDb,
+    markerCount:     data.markers.length,
+    markers:         data.markers,
+
+    totalTracks:     data.tracks.length,
+    folderTracks:    data.tracks.filter(t=>t.isbus===1).length,
+    leafTracks:      data.tracks.filter(t=>t.isbus!==1).length,
+    mutedTracks:     data.tracks.filter(t=>t.isMuted).length,
+    mutedTrackNames: data.tracks.filter(t=>t.isMuted).map(t=>t.name),
+    maxNestingDepth: Math.max(0,...data.tracks.map(t=>t.nestingDepth)),
+    avgFxPerTrack:   data.tracks.length ? allPlugins.length/data.tracks.length : 0,
+
+    totalPluginInstances: allPlugins.length,
+    uniquePlugins:   uniqueNames.size,
+    pluginCounts:    sortObj(pluginCtr),
+    vendorCounts:    sortObj(vendorCtr),
+    typeCounts:      typeCtr,
+    bypassedFxCount: allPlugins.filter(p=>p.isBypassed).length,
+    pluginDiversity: allPlugins.length ? uniqueNames.size/allPlugins.length : 0,
+    pluginList:      [...uniqueNames].sort(),
+
+    totalItems:      allItems.length,
+    midiItems:       midiItems.length,
+    audioItems:      audioItems.length,
+    mutedItems:      allItems.filter(i=>i.isMuted).length,
+    avgItemLength:   lengths.length ? lengths.reduce((a,b)=>a+b,0)/lengths.length : 0,
+    longestItem, shortestItem,
+    longestItemName:  allItems.find(i=>i.length===longestItem)?.name||'',
+    shortestItemName: allItems.find(i=>i.length===shortestItem)?.name||'',
+    arrangementDensity: density,
+
+    totalMidiNotes,
+    midiNoteDensity: totalMidiDur>0 ? (totalMidiNotes/totalMidiDur)*60 : 0,
+    midiChannelsUsed: [...midiChannels].sort((a,b)=>a-b),
+    totalMidiDuration: totalMidiDur,
+
+    totalSends:      data.tracks.reduce((s,t)=>s+t.receives,0),
+    tracksWithSends: data.tracks.filter(t=>t.receives>0).map(t=>t.name),
+
+    totalEnvelopes:  allEnvs.length,
+    totalAutomationPoints: totalAutoPts,
+    automatedParams: [...new Set([...allEnvs.map(e=>e.name),
+      ...data.tracks.flatMap(t=>t.plugins.filter(p=>p.hasAutomation).map(p=>`${p.name} (param)`))
+    ])].filter(Boolean),
+    automationIntensity: data.estimatedDuration>0 ? totalAutoPts/data.estimatedDuration : 0,
+
+    tempoChanges:    Math.max(0, data.tempoEnvelope.length-1),
+    tempoCurve:      data.tempoEnvelope,
+  };
+}
+
+function computeBatchStats(allStats) {
+  const names=allStats.map(s=>s.projectName);
+  const gp={}, gv={};
+  for(const s of allStats){
+    for(const[k,v] of Object.entries(s.pluginCounts)) gp[k]=(gp[k]||0)+v;
+    for(const[k,v] of Object.entries(s.vendorCounts)) gv[k]=(gv[k]||0)+v;
+  }
+  const norm=vals=>{const mn=Math.min(...vals),mx=Math.max(...vals);return mx===mn?vals.map(()=>0.5):vals.map(v=>(v-mn)/(mx-mn));};
+  const nT=norm(allStats.map(s=>s.totalTracks));
+  const nF=norm(allStats.map(s=>s.totalPluginInstances));
+  const nM=norm(allStats.map(s=>s.totalItems>0?s.midiItems/s.totalItems:0));
+  const nA=norm(allStats.map(s=>s.automationIntensity));
+  const nD=norm(allStats.map(s=>s.arrangementDensity.length?Math.max(...s.arrangementDensity):0));
+  const nDi=norm(allStats.map(s=>s.pluginDiversity));
+  return {
+    names, projects: allStats.map(s=>({name:s.projectName,tracks:s.totalTracks,plugins:s.totalPluginInstances,
+      items:s.totalItems,durationFmt:s.durationFormatted,tempo:s.tempo,reaperVersion:s.reaperVersion,
+      lastSaved:s.lastSaved,lastSavedRaw:s.lastSavedRaw})),
+    trackCounts: allStats.map(s=>s.totalTracks),
+    pluginCounts: allStats.map(s=>s.totalPluginInstances),
+    durations: allStats.map(s=>s.estimatedDuration),
+    tempos: allStats.map(s=>s.tempo),
+    midiCounts: allStats.map(s=>s.midiItems),
+    audioCounts: allStats.map(s=>s.audioItems),
+    globalPluginCounts: Object.fromEntries(Object.entries(gp).sort((a,b)=>b[1]-a[1]).slice(0,30)),
+    globalVendorCounts: Object.fromEntries(Object.entries(gv).sort((a,b)=>b[1]-a[1])),
+    fingerprints: allStats.map((s,i)=>({name:s.projectName,
+      tracks:nT[i],fxCount:nF[i],midiRatio:nM[i],automation:nA[i],density:nD[i],diversity:nDi[i]})),
+  };
+}
+
+// ============================================================
+// 4. HTML GENERATOR
+// ============================================================
+const CC = { bg:'#1a1a2e',card:'#16213e',text:'#e0e0e0',muted:'#8892a0',accent:'#e67e22',
+  accent2:'#f39c12',border:'#2a3a5e',green:'#27ae60',red:'#e74c3c',blue:'#3498db',cyan:'#00cec9' };
+const CHART_COLORS=['#e67e22','#3498db','#27ae60','#e74c3c','#9b59b6','#f39c12','#1abc9c',
+  '#fd79a8','#00cec9','#d35400','#2ecc71','#e84393','#0984e3','#6c5ce7','#fdcb6e'];
+const PLOT_BASE={paper_bgcolor:CC.card,plot_bgcolor:CC.card,
+  font:{color:CC.text,family:"'Inter','Segoe UI',sans-serif"},
+  xaxis:{gridcolor:CC.border,zerolinecolor:CC.border},
+  yaxis:{gridcolor:CC.border,zerolinecolor:CC.border},
+  margin:{l:50,r:30,t:40,b:40}};
+let _cc=0;
+
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function aesc(o){return esc(JSON.stringify(o));}
+
+function plotlyChart(id,traces,layout={},height=350){
+  _cc++;
+  const uid=`ch-${id}-${_cc}`;
+  const m={...PLOT_BASE,height,...layout};
+  if(layout.xaxis) m.xaxis={...PLOT_BASE.xaxis,...layout.xaxis};
+  if(layout.yaxis) m.yaxis={...PLOT_BASE.yaxis,...layout.yaxis};
+  return `<div id="${uid}" class="chart-container deferred-chart" data-traces="${aesc(traces)}" data-layout="${aesc(m)}"></div>`;
+}
+
+function statCard(label,value,subtitle='',color=CC.accent){
+  const sub=subtitle?`<div class="stat-sub" title="${esc(subtitle)}">${esc(subtitle)}</div>`:'';
+  return `<div class="stat-card"><div class="stat-value" style="color:${color}">${esc(value)}</div><div class="stat-label">${esc(label)}</div>${sub}</div>`;
+}
+
+function section(title,content,id='',collapsed=false){
+  const sid=id?` id="${id}"`:'';
+  const cls=collapsed?' collapsed':'';
+  return `<div class="section${cls}"${sid}><div class="section-header" onclick="this.parentElement.classList.toggle('collapsed')"><h2>${esc(title)}</h2><span class="toggle-icon">▼</span></div><div class="section-body">${content}</div></div>`;
+}
+
+function renderOverview(s){
+  const cards=[statCard('Project',s.projectName),statCard('Reaper',s.reaperVersion,s.platform),
+    statCard('Last Saved',s.lastSaved),statCard('Tempo',`${s.tempo} BPM`,s.timeSignature),
+    statCard('Sample Rate',`${s.sampleRate.toLocaleString()} Hz`),
+    statCard('Duration',s.durationFormatted,`${s.estimatedDuration.toFixed(1)}s`),
+    statCard('Rendered',s.wasRendered?'Yes':'No','',s.wasRendered?CC.green:CC.red),
+    statCard('Master Vol',`${s.masterVolumeDb.toFixed(1)} dB`)];
+  if(s.markerCount>0) cards.push(statCard('Markers',String(s.markerCount),s.markers.map(m=>m.name).join(', ')));
+  return section('Overview',`<div class="stat-grid">${cards.join('')}</div>`,'overview');
+}
+
+function renderTracks(s){
+  const cards=[statCard('Total Tracks',String(s.totalTracks)),statCard('Folder/Bus',String(s.folderTracks)),
+    statCard('Leaf Tracks',String(s.leafTracks)),
+    statCard('Muted Tracks',String(s.mutedTracks),s.mutedTrackNames.join(', '),s.mutedTracks?CC.red:CC.accent),
+    statCard('Max Depth',String(s.maxNestingDepth)),statCard('Avg FX/Track',s.avgFxPerTrack.toFixed(1))];
+  return section('Track Statistics',`<div class="stat-grid">${cards.join('')}</div>`,'tracks');
+}
+
+function renderPlugins(s){
+  const cards=[statCard('Total Instances',String(s.totalPluginInstances)),statCard('Unique',String(s.uniquePlugins)),
+    statCard('Bypassed',String(s.bypassedFxCount),'',s.bypassedFxCount?CC.red:CC.accent),
+    statCard('Diversity',s.pluginDiversity.toFixed(2),'unique/total')];
+  let html=`<div class="stat-grid">${cards.join('')}</div>`;
+  if(!s.totalPluginInstances){html+=`<p class="empty-message">No plugins found.</p>`;return section('FX / Plugins',html,'plugins');}
+  const topN=Object.entries(s.pluginCounts).slice(0,15);
+  if(topN.length){
+    const sn=n=>n.replace(/^(VST3i|VSTi|VST3|VST|JS):\s*/i,'').slice(0,32);
+    const names=topN.map(([n])=>sn(n)).reverse(), counts=topN.map(([,v])=>v).reverse();
+    html+=plotlyChart('plugins',[{type:'bar',x:counts,y:names,orientation:'h',marker:{color:CC.accent}}],
+      {title:'Top Plugins',xaxis:{title:'Instances'},margin:{l:200,r:30,t:40,b:40}},Math.max(250,names.length*28+80));
+  }
+  let row='<div class="chart-row">';
+  const vs=Object.keys(s.vendorCounts).slice(0,10);
+  if(vs.length) row+=plotlyChart('vendors',[{type:'pie',labels:vs,values:vs.map(v=>s.vendorCounts[v]),
+    marker:{colors:CHART_COLORS},hole:.4,textfont:{color:'#fff'}}],{title:'Vendors'},320);
+  const ts=Object.keys(s.typeCounts);
+  if(ts.length) row+=plotlyChart('fxtypes',[{type:'pie',labels:ts,values:ts.map(t=>s.typeCounts[t]),
+    marker:{colors:[CC.accent,CC.blue,CC.green]},hole:.4,textfont:{color:'#fff'}}],{title:'Types'},320);
+  row+='</div>'; html+=row;
+  if(s.pluginList.length) html+=`<details class="detail-block"><summary>Full list (${s.uniquePlugins})</summary><ul>${s.pluginList.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></details>`;
+  return section('FX / Plugins',html,'plugins');
+}
+
+function renderItems(s){
+  const cards=[statCard('Total Items',String(s.totalItems)),statCard('MIDI',String(s.midiItems),'',CC.cyan),
+    statCard('Audio',String(s.audioItems),'',CC.blue),statCard('Muted',String(s.mutedItems),'',s.mutedItems?CC.red:CC.accent),
+    statCard('Avg Length',`${s.avgItemLength.toFixed(1)}s`),statCard('Longest',`${s.longestItem.toFixed(1)}s`,s.longestItemName),
+    statCard('Shortest',`${s.shortestItem.toFixed(1)}s`,s.shortestItemName)];
+  let html=`<div class="stat-grid">${cards.join('')}</div>`;
+  if(!s.totalItems){html+=`<p class="empty-message">No items.</p>`;return section('Arrangement',html,'items');}
+  const lbls=[],vals=[],clrs=[];
+  if(s.midiItems) {lbls.push('MIDI');vals.push(s.midiItems);clrs.push(CC.cyan);}
+  if(s.audioItems){lbls.push('Audio');vals.push(s.audioItems);clrs.push(CC.blue);}
+  const oth=s.totalItems-s.midiItems-s.audioItems;
+  if(oth>0){lbls.push('Other');vals.push(oth);clrs.push(CC.muted);}
+  let row='<div class="chart-row">';
+  if(lbls.length) row+=plotlyChart('item-types',[{type:'pie',labels:lbls,values:vals,marker:{colors:clrs},hole:.4,textfont:{color:'#fff'}}],{title:'Item Types'},300);
+  row+='</div>'; html+=row;
+  if(s.arrangementDensity.length) html+=plotlyChart('density',[{type:'bar',x:s.arrangementDensity.map((_,i)=>String(i+1)),y:s.arrangementDensity,marker:{color:s.arrangementDensity,colorscale:[[0,'#16213e'],[.5,CC.accent],[1,CC.accent2]],showscale:false}}],
+    {title:'Arrangement Density',xaxis:{title:'Time Bin',dtick:4},yaxis:{title:'Items'}},250);
+  return section('Arrangement / Items',html,'items');
+}
+
+function renderMidi(s){
+  if(!s.totalMidiNotes&&!s.midiItems) return '';
+  const cards=[statCard('MIDI Notes',s.totalMidiNotes.toLocaleString()),
+    statCard('Note Density',`${s.midiNoteDensity.toFixed(0)} /min`),
+    statCard('MIDI Duration',`${s.totalMidiDuration.toFixed(1)}s`),
+    statCard('Channels',s.midiChannelsUsed.length?s.midiChannelsUsed.map(c=>c+1).join(', '):'None')];
+  return section('MIDI Analysis',`<div class="stat-grid">${cards.join('')}</div>`,'midi');
+}
+
+function renderRouting(s){
+  let html=`<div class="stat-grid">${statCard('Total Sends',String(s.totalSends))}</div>`;
+  if(s.tracksWithSends.length) html+=`<details class="detail-block"><summary>Tracks with sends (${s.tracksWithSends.length})</summary><ul>${s.tracksWithSends.map(t=>`<li>${esc(t)}</li>`).join('')}</ul></details>`;
+  return section('Routing & Sends',html,'routing',true);
+}
+
+function renderAutomation(s){
+  const cards=[statCard('Envelopes',String(s.totalEnvelopes)),statCard('Points',s.totalAutomationPoints.toLocaleString()),statCard('Intensity',`${s.automationIntensity.toFixed(2)} pts/s`)];
+  let html=`<div class="stat-grid">${cards.join('')}</div>`;
+  if(s.automatedParams.length) html+=`<details class="detail-block"><summary>Automated params (${s.automatedParams.length})</summary><ul>${s.automatedParams.sort().map(p=>`<li>${esc(p)}</li>`).join('')}</ul></details>`;
+  return section('Automation',html,'automation',true);
+}
+
+function renderTempo(s){
+  if(!s.tempoChanges) return '';
+  let html=statCard('Tempo Changes',String(s.tempoChanges));
+  if(s.tempoCurve.length>1) html+=plotlyChart('tempo',[{type:'scatter',mode:'lines+markers',
+    x:s.tempoCurve.map(p=>p.time),y:s.tempoCurve.map(p=>p.bpm),
+    line:{color:CC.accent,width:2,shape:'hv'},marker:{size:6}}],
+    {title:'Tempo Map',xaxis:{title:'Time (s)'},yaxis:{title:'BPM'}},280);
+  return section('Tempo Map',html,'tempo',true);
+}
+
+function renderProject(s){
+  return [renderOverview,renderTracks,renderPlugins,renderItems,renderMidi,renderRouting,renderAutomation,renderTempo]
+    .map(fn=>fn(s)).filter(Boolean).join('\n');
+}
+
+function renderComparison(allStats, batch){
+  const parts=[];
+  const{names}=batch;
+  const rows=batch.projects.map(p=>`<tr><td>${esc(p.name)}</td><td>${p.tracks}</td><td>${p.plugins}</td><td>${p.items}</td><td>${p.durationFmt}</td><td>${p.tempo}</td><td>${esc(p.reaperVersion)}</td><td>${esc(p.lastSaved)}</td></tr>`).join('');
+  parts.push(section('Project Table',`<div class="table-wrap"><table class="data-table"><thead><tr><th>Project</th><th>Tracks</th><th>Plugins</th><th>Items</th><th>Duration</th><th>BPM</th><th>Version</th><th>Saved</th></tr></thead><tbody>${rows}</tbody></table></div>`,'cmp-table'));
+  parts.push(section('Track Count',plotlyChart('cmp-tr',[{type:'bar',x:names,y:batch.trackCounts,marker:{color:CC.accent}}],{title:'Tracks per Project'}),'cmp-tr'));
+  parts.push(section('Plugin Count',plotlyChart('cmp-pl',[{type:'bar',x:names,y:batch.pluginCounts,marker:{color:CC.blue}}],{title:'Plugins per Project'}),'cmp-pl'));
+  parts.push(section('Complexity',plotlyChart('cmp-sc',[{type:'scatter',mode:'markers+text',x:batch.durations,y:batch.trackCounts,text:names,textposition:'top center',textfont:{size:10,color:CC.muted},marker:{size:12,color:CC.accent}}],{title:'Duration vs Tracks',xaxis:{title:'Duration (s)'},yaxis:{title:'Tracks'}}),'cmp-sc'));
+  parts.push(section('MIDI vs Audio',plotlyChart('cmp-ma',[{type:'bar',x:names,y:batch.midiCounts,name:'MIDI',marker:{color:CC.cyan}},{type:'bar',x:names,y:batch.audioCounts,name:'Audio',marker:{color:CC.blue}}],{title:'MIDI vs Audio',barmode:'stack'}),'cmp-ma'));
+  const gp=batch.globalPluginCounts;
+  if(Object.keys(gp).length){
+    const gpN=Object.keys(gp),gpC=Object.values(gp);
+    const sn=gpN.map(n=>n.replace(/^(VST3i|VSTi|VST3|VST|JS):\s*/i,'').slice(0,35));
+    parts.push(section('Top Plugins',plotlyChart('cmp-gp',[{type:'bar',x:gpC.slice().reverse(),y:sn.slice().reverse(),orientation:'h',marker:{color:CC.accent2}}],{title:'Global Plugin Leaderboard',margin:{l:230,r:30,t:40,b:40}},Math.max(300,gpN.length*24+80)),'cmp-gp'));
+  }
+  const gv=batch.globalVendorCounts;
+  if(Object.keys(gv).length) parts.push(section('Top Vendors',plotlyChart('cmp-gv',[{type:'pie',labels:Object.keys(gv),values:Object.values(gv),marker:{colors:CHART_COLORS},hole:.35,textfont:{color:'#fff'}}],{title:'Vendor Leaderboard'},380),'cmp-gv'));
+  if(batch.tempos.length) parts.push(section('Tempo Distribution',plotlyChart('cmp-tempo',[{type:'histogram',x:batch.tempos,marker:{color:CC.accent},nbinsx:20}],{title:'Tempo Distribution',xaxis:{title:'BPM'},yaxis:{title:'Count'}}),'cmp-tempo'));
+  const sorted=[...batch.projects].sort((a,b)=>a.lastSavedRaw.localeCompare(b.lastSavedRaw));
+  parts.push(section('Timeline',plotlyChart('cmp-tl',[{type:'scatter',mode:'markers+text',x:sorted.map(p=>p.lastSaved),y:sorted.map(p=>p.name),text:sorted.map(p=>p.name),textposition:'middle right',textfont:{size:10,color:CC.text},marker:{size:12,color:CC.accent,symbol:'diamond'}}],{title:'Projects by Save Date',showlegend:false,yaxis:{visible:false},margin:{l:30,r:200,t:40,b:40}},Math.max(250,sorted.length*38)),'cmp-tl'));
+  if(batch.fingerprints.length){
+    const cats=['Tracks','FX','MIDI Ratio','Automation','Density','Diversity'];
+    const traces=batch.fingerprints.map((fp,i)=>{const v=[fp.tracks,fp.fxCount,fp.midiRatio,fp.automation,fp.density,fp.diversity];v.push(v[0]);return{type:'scatterpolar',r:v,theta:[...cats,cats[0]],fill:'toself',name:fp.name,opacity:.6,line:{color:CHART_COLORS[i%CHART_COLORS.length]}};});
+    parts.push(section('Fingerprints',plotlyChart('cmp-radar',traces,{title:'Production Fingerprints',polar:{bgcolor:CC.card,radialaxis:{visible:true,range:[0,1.05],gridcolor:CC.border,color:CC.muted},angularaxis:{gridcolor:CC.border,color:CC.text}},showlegend:true,legend:{font:{size:10}}},500),'cmp-radar'));
+  }
+  return parts.join('\n');
+}
+
+function buildMetrics(allStats){
+  return allStats.map(s=>({name:s.projectName,tracks:s.totalTracks,plugins:s.totalPluginInstances,
+    items:s.totalItems,duration:Math.round(s.estimatedDuration*10)/10,tempo:s.tempo,
+    envelopes:s.totalEnvelopes,automationPts:s.totalAutomationPoints,sends:s.totalSends,
+    midiNotes:s.totalMidiNotes,midiItems:s.midiItems,audioItems:s.audioItems,
+    maxDepth:s.maxNestingDepth,avgFxPerTrack:Math.round(s.avgFxPerTrack*100)/100,
+    mutedTracks:s.mutedTracks,rendered:s.wasRendered,sampleRate:s.sampleRate,
+    version:s.reaperVersion,tempoChanges:s.tempoChanges}));
+}
+
+function renderFilterPanel(allStats){
+  const metrics=buildMetrics(allStats);
+  const mm=k=>{const v=metrics.map(m=>m[k]);return[Math.min(...v),Math.max(...v)];};
+  const ri=(label,key,step='1')=>{const[lo,hi]=mm(key);return `<div class="filter-range"><label>${label} <span class="range-info">(${lo}–${hi})</span></label><div class="range-row"><input type="number" data-filter="${key}" data-bound="min" value="${lo}" min="${lo}" max="${hi}" step="${step}"><span class="range-sep">to</span><input type="number" data-filter="${key}" data-bound="max" value="${hi}" min="${lo}" max="${hi}" step="${step}"></div></div>`;};
+  const srOpts=['<option value="">Any</option>',...[...new Set(allStats.map(s=>s.sampleRate))].sort().map(r=>`<option value="${r}">${r.toLocaleString()} Hz</option>`)].join('');
+  const verOpts=['<option value="">Any</option>',...[...new Set(allStats.map(s=>s.reaperVersion))].sort().map(v=>`<option value="${esc(v)}">${esc(v)}</option>`)].join('');
+  const excItems=allStats.map(s=>`<label><input type="checkbox" class="exclude-cb" data-project="${esc(s.projectName)}" checked> ${esc(s.projectName)}</label>`).join('');
+  return `<button class="filter-toggle" id="filter-toggle" onclick="toggleFilterPanel()">⚙ Filters <span class="badge" id="filter-badge">0</span></button>
+<aside class="filter-panel" id="filter-panel">
+  <div class="filter-header"><h2>⚙ Filters</h2><button class="filter-close" onclick="toggleFilterPanel()">✕</button></div>
+  <div class="filter-actions"><button class="filter-btn primary" onclick="applyFilters()">Apply</button><button class="filter-btn" onclick="resetFilters()">Reset</button></div>
+  <div class="filter-body">
+    <div class="filter-group"><div class="filter-group-title" onclick="this.parentElement.classList.toggle('fg-collapsed')">Tracks <span class="fg-arrow">▼</span></div><div class="filter-group-body">${ri('Track Count','tracks')}${ri('Max Depth','maxDepth')}${ri('Muted Tracks','mutedTracks')}</div></div>
+    <div class="filter-group"><div class="filter-group-title" onclick="this.parentElement.classList.toggle('fg-collapsed')">Plugins / FX <span class="fg-arrow">▼</span></div><div class="filter-group-body">${ri('Total Plugins','plugins')}${ri('Avg FX/Track','avgFxPerTrack','0.1')}${ri('MIDI Items','midiItems')}${ri('Audio Items','audioItems')}</div></div>
+    <div class="filter-group"><div class="filter-group-title" onclick="this.parentElement.classList.toggle('fg-collapsed')">Arrangement <span class="fg-arrow">▼</span></div><div class="filter-group-body">${ri('Total Items','items')}${ri('Duration (s)','duration')}${ri('Tempo (BPM)','tempo','0.1')}</div></div>
+    <div class="filter-group"><div class="filter-group-title" onclick="this.parentElement.classList.toggle('fg-collapsed')">Automation <span class="fg-arrow">▼</span></div><div class="filter-group-body">${ri('Envelopes','envelopes')}${ri('Auto Points','automationPts')}${ri('Sends','sends')}</div></div>
+    <div class="filter-group"><div class="filter-group-title" onclick="this.parentElement.classList.toggle('fg-collapsed')">MIDI <span class="fg-arrow">▼</span></div><div class="filter-group-body">${ri('MIDI Notes','midiNotes')}</div></div>
+    <div class="filter-group"><div class="filter-group-title" onclick="this.parentElement.classList.toggle('fg-collapsed')">Boolean <span class="fg-arrow">▼</span></div><div class="filter-group-body">
+      <label class="filter-checkbox"><input type="checkbox" id="flt-has-auto"> Has Automation</label>
+      <label class="filter-checkbox"><input type="checkbox" id="flt-has-midi"> Has MIDI</label>
+      <label class="filter-checkbox"><input type="checkbox" id="flt-rendered"> Was Rendered</label>
+      <label class="filter-checkbox"><input type="checkbox" id="flt-has-sends"> Has Sends</label>
+      <label class="filter-checkbox"><input type="checkbox" id="flt-tempo-changes"> Has Tempo Changes</label>
+    </div></div>
+    <div class="filter-group"><div class="filter-group-title" onclick="this.parentElement.classList.toggle('fg-collapsed')">Project Info <span class="fg-arrow">▼</span></div><div class="filter-group-body">
+      <label style="font-size:.8rem;color:var(--muted)">Sample Rate</label><select class="filter-select" id="flt-sr">${srOpts}</select>
+      <label style="font-size:.8rem;color:var(--muted)">Reaper Version</label><select class="filter-select" id="flt-ver">${verOpts}</select>
+    </div></div>
+    <div class="filter-group"><div class="filter-group-title" onclick="this.parentElement.classList.toggle('fg-collapsed')">Exclude Projects <span class="fg-arrow">▼</span></div><div class="filter-group-body">
+      <input type="text" class="exclude-search" id="exclude-search" placeholder="Filter list…" oninput="filterExcludeList(this.value)">
+      <div style="margin-bottom:6px;font-size:.72rem"><a href="#" style="color:var(--accent)" onclick="toggleAllExcludes(true);return false">Select All</a> | <a href="#" style="color:var(--accent)" onclick="toggleAllExcludes(false);return false">Deselect All</a></div>
+      <div class="exclude-list" id="exclude-list">${excItems}</div>
+    </div></div>
+  </div>
+  <div class="filter-result-count" id="filter-result-count">Showing <strong>${allStats.length}</strong> / ${allStats.length} projects</div>
+</aside>`;
+}
+
+// ============================================================
+// 5. CHART RENDERING & DASHBOARD INTERACTION
+// ============================================================
+window.PROJECT_METRICS = [];
+
+function renderChartsIn(el){
+  el.querySelectorAll('.deferred-chart:not([data-rendered])').forEach(c=>{
+    try{
+      Plotly.newPlot(c.id,JSON.parse(c.dataset.traces),JSON.parse(c.dataset.layout),{responsive:true,displayModeBar:false});
+      c.dataset.rendered='1';
+    }catch(e){console.warn('Chart',c.id,e);}
+  });
+}
+
+window.switchTab = function(name){
+  document.querySelectorAll('.sidebar-item').forEach(e=>e.classList.remove('active'));
+  const si=document.querySelector(`.sidebar-item[data-name="${CSS.escape(name)}"]`);
+  if(si) si.classList.add('active');
+  document.querySelectorAll('.project-panel').forEach(p=>p.classList.remove('active'));
+  const panel=document.getElementById('panel-'+name);
+  if(panel){panel.classList.add('active');renderChartsIn(panel);window.scrollTo(0,0);setTimeout(()=>window.dispatchEvent(new Event('resize')),50);}
+};
+
+window.toggleFilterPanel = function(){
+  const p=document.getElementById('filter-panel'); if(p) p.classList.toggle('open');
+};
+
+window.filterExcludeList = function(q){
+  q=q.toLowerCase();
+  document.querySelectorAll('#exclude-list label').forEach(l=>{
+    l.style.display=(!q||l.textContent.toLowerCase().includes(q))?'':'none';
+  });
+};
+
+window.toggleAllExcludes = function(state){
+  document.querySelectorAll('.exclude-cb').forEach(cb=>cb.checked=state);
+};
+
+function sidebarFilterProjects(q){
+  q=(q||'').toLowerCase();
+  const items=document.querySelectorAll('.sidebar-item:not(.comparison)');
+  let n=0;
+  items.forEach(el=>{
+    const match=!q||el.dataset.name.toLowerCase().includes(q);
+    const filtered=el.classList.contains('filter-hidden');
+    if(match&&!filtered){el.classList.remove('hidden');n++;}
+    else el.classList.add('hidden');
+  });
+  const ctr=document.getElementById('sidebar-count');
+  if(ctr) ctr.textContent=`${n} / ${items.length} projects`;
+}
+
+window.applyFilters = function(){
+  if(!PROJECT_METRICS.length) return;
+  const rk=['tracks','plugins','items','duration','tempo','envelopes','automationPts','sends','midiNotes','midiItems','audioItems','maxDepth','avgFxPerTrack','mutedTracks'];
+  const ranges={}; let ac=0;
+  rk.forEach(k=>{
+    const elo=document.querySelector(`input[data-filter="${k}"][data-bound="min"]`);
+    const ehi=document.querySelector(`input[data-filter="${k}"][data-bound="max"]`);
+    const lo=elo?parseFloat(elo.value):null, hi=ehi?parseFloat(ehi.value):null;
+    ranges[k]={lo,hi};
+    if(elo&&parseFloat(elo.value)!==parseFloat(elo.min)) ac++;
+    if(ehi&&parseFloat(ehi.value)!==parseFloat(ehi.max)) ac++;
+  });
+  const chk=id=>{const e=document.getElementById(id);return e&&e.checked;};
+  const b={ha:chk('flt-has-auto'),hm:chk('flt-has-midi'),r:chk('flt-rendered'),hs:chk('flt-has-sends'),tc:chk('flt-tempo-changes')};
+  Object.values(b).forEach(v=>{if(v)ac++;});
+  const srF=document.getElementById('flt-sr')?.value||'';
+  const verF=document.getElementById('flt-ver')?.value||'';
+  if(srF)ac++; if(verF)ac++;
+  const excl=new Set();
+  document.querySelectorAll('.exclude-cb').forEach(cb=>{if(!cb.checked){excl.add(cb.dataset.project);ac++;}});
+
+  const vis=new Set();
+  PROJECT_METRICS.forEach(m=>{
+    let pass=!excl.has(m.name);
+    if(pass) rk.forEach(k=>{if(ranges[k].lo!==null&&m[k]<ranges[k].lo)pass=false;if(ranges[k].hi!==null&&m[k]>ranges[k].hi)pass=false;});
+    if(pass&&b.ha&&m.envelopes===0)pass=false;
+    if(pass&&b.hm&&m.midiNotes===0)pass=false;
+    if(pass&&b.r&&!m.rendered)pass=false;
+    if(pass&&b.hs&&m.sends===0)pass=false;
+    if(pass&&b.tc&&m.tempoChanges===0)pass=false;
+    if(pass&&srF&&m.sampleRate!==parseInt(srF))pass=false;
+    if(pass&&verF&&m.version!==verF)pass=false;
+    if(pass)vis.add(m.name);
+  });
+  document.querySelectorAll('.sidebar-item:not(.comparison)').forEach(el=>{
+    vis.has(el.dataset.name||'')?el.classList.remove('filter-hidden','hidden'):el.classList.add('filter-hidden','hidden');
+  });
+  const ctr=document.getElementById('sidebar-count');
+  if(ctr) ctr.textContent=`${vis.size} / ${PROJECT_METRICS.length} projects`;
+  const rc=document.getElementById('filter-result-count');
+  if(rc) rc.innerHTML=`Showing <strong>${vis.size}</strong> / ${PROJECT_METRICS.length} projects`;
+  const badge=document.getElementById('filter-badge');
+  if(badge){badge.textContent=ac;badge.classList.toggle('visible',ac>0);}
+  const sb=document.getElementById('sidebar-search');
+  if(sb&&sb.value) sidebarFilterProjects(sb.value);
+  const tbl=document.querySelector('#panel-__comparison__ .data-table tbody');
+  if(tbl) tbl.querySelectorAll('tr').forEach(row=>{const n=row.querySelector('td')?.textContent.trim()||'';row.style.display=vis.has(n)?'':'none';});
+};
+
+window.resetFilters = function(){
+  document.querySelectorAll('input[data-filter]').forEach(el=>el.value=el.dataset.bound==='min'?el.min:el.max);
+  ['flt-has-auto','flt-has-midi','flt-rendered','flt-has-sends','flt-tempo-changes'].forEach(id=>{const e=document.getElementById(id);if(e)e.checked=false;});
+  ['flt-sr','flt-ver'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  toggleAllExcludes(true); applyFilters();
+};
+
+// ============================================================
+// 6. FILE HANDLING & APP
+// ============================================================
+let _pendingFiles = [];
+
+function readFile(file){
+  return new Promise((res,rej)=>{
+    const reader=new FileReader();
+    reader.onload=e=>res(e.target.result);
+    reader.onerror=()=>rej(new Error(`Cannot read ${file.name}`));
+    reader.readAsText(file,'UTF-8');
+  });
+}
+
+function updateProgress(done, total, filename){
+  const pct = total > 0 ? (done/total)*100 : 0;
+  document.getElementById('progress-bar').style.width = pct+'%';
+  document.getElementById('progress-file').textContent = filename;
+  document.getElementById('progress-count').textContent = `${done} / ${total}`;
+  document.getElementById('progress-sub').textContent = done === total ? 'Building dashboard…' : 'Parsing files';
+}
+
+async function analyzeFiles(files){
+  const allStats=[]; const errors=[];
+  for(let i=0;i<files.length;i++){
+    updateProgress(i, files.length, files[i].name);
+    try{
+      const text = await readFile(files[i]);
+      const root = parseRppText(text);
+      const name = files[i].name.replace(/\.rpp$/i,'');
+      const data = extractProjectData(root, name);
+      const stats = computeProjectStats(data);
+      allStats.push(stats);
+    }catch(e){
+      errors.push(`${files[i].name}: ${e.message}`);
+    }
+    if(i%20===0) await new Promise(r=>setTimeout(r,0)); // yield to UI
+  }
+  updateProgress(files.length, files.length, '');
+  if(errors.length) console.warn('Parse errors:', errors);
+  return allStats;
+}
+
+function buildDashboardHtml(allStats){
+  _cc = 0;
+  const isMulti = allStats.length > 1;
+  const batch = isMulti ? computeBatchStats(allStats) : null;
+  const title = isMulti
+    ? `${allStats.length} Projects`
+    : (allStats[0]?.projectName || 'Project');
+
+  if(!isMulti){
+    return `<div class="single-content">
+  <div class="toolbar">
+    <h1>🎛 ${esc(allStats[0].projectName)}</h1>
+    <button class="tool-btn" onclick="exportHtml()">⬇ Export HTML</button>
+    <button class="tool-btn" onclick="backToLanding()">← New Analysis</button>
+  </div>
+  ${renderProject(allStats[0])}
+</div>
+<script>window.PROJECT_METRICS=[];<\/script>`;
+  }
+
+  const sideItems = [
+    `<div class="sidebar-item comparison active" data-name="__comparison__" onclick="switchTab('__comparison__')">📊 All Projects</div>`,
+    ...allStats.map(s=>{const safe=esc(s.projectName);return `<div class="sidebar-item" data-name="${safe}" onclick="switchTab('${safe}')">${safe}</div>`;})
+  ].join('');
+
+  const sidebar = `<nav class="sidebar">
+  <div class="sidebar-header"><h1>🎛 ${esc(title)}</h1>
+    <input type="text" id="sidebar-search" class="sidebar-search" placeholder="Search…" autocomplete="off" oninput="sidebarFilterProjects(this.value)">
+    <div id="sidebar-count" class="sidebar-count">${allStats.length} projects</div>
+  </div>
+  <div class="sidebar-list">${sideItems}</div>
+  <div class="sidebar-back"><a onclick="backToLanding()">← New Analysis</a></div>
+</nav>`;
+
+  const filter = renderFilterPanel(allStats);
+  const cmpHtml = renderComparison(allStats, batch);
+  const panels = [`<div class="project-panel active" id="panel-__comparison__">${cmpHtml}</div>`,
+    ...allStats.map(s=>`<div class="project-panel" id="panel-${esc(s.projectName)}">${renderProject(s)}</div>`)
+  ].join('\n');
+
+  const metricsJson = JSON.stringify(buildMetrics(allStats));
+
+  return `${sidebar}${filter}
+<div class="main-content" id="main-content">
+  <div class="toolbar">
+    <h1>🎛 ${esc(title)}</h1>
+    <button class="tool-btn" onclick="exportHtml()">⬇ Export HTML</button>
+    <button class="tool-btn" onclick="backToLanding()">← New Analysis</button>
+  </div>
+  ${panels}
+</div>
+<script>
+window.PROJECT_METRICS=${metricsJson};
+(function(){
+  var sb=document.getElementById('sidebar-search');
+  if(sb)sb.addEventListener('input',function(){sidebarFilterProjects(this.value);});
+  document.querySelectorAll('input[data-filter]').forEach(function(el){
+    el.addEventListener('keyup',function(e){if(e.key==='Enter')applyFilters();});
+  });
+  var cmp=document.querySelector('.sidebar-item.comparison');
+  if(cmp)cmp.click();
+})();
+<\/script>`;
+}
+
+function showDashboard(allStats){
+  document.getElementById('landing').style.display='none';
+  document.getElementById('progress-overlay').classList.remove('active');
+  const dash=document.getElementById('dashboard');
+  dash.innerHTML = buildDashboardHtml(allStats);
+  dash.style.display='block';
+
+  // For single project, render all charts immediately
+  if(allStats.length===1){
+    setTimeout(()=>renderChartsIn(dash), 100);
+  }
+  // For multi, first tab click triggers deferred render
+}
+
+window.backToLanding = function(){
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('dashboard').innerHTML='';
+  document.getElementById('landing').style.display='flex';
+  _pendingFiles=[];
+  updateFileList([]);
+  document.getElementById('analyze-btn').style.display='none';
+  window.PROJECT_METRICS=[];
+};
+
+// ── Export standalone HTML ────────────────────────────────────────────────────
+window.exportHtml = function(){
+  if(!_lastStats||!_lastStats.length){showToast('No data to export');return;}
+  _cc=0;
+  const isMulti=_lastStats.length>1;
+  const batch=isMulti?computeBatchStats(_lastStats):null;
+  const title=isMulti?`Reaper Analysis — ${_lastStats.length} Projects`:`Reaper Analysis — ${_lastStats[0].projectName}`;
+  // Minimal self-contained export using same renderer
+  const panels = isMulti ? [
+    `<div class="project-panel active" id="panel-__comparison__">${renderComparison(_lastStats,batch)}</div>`,
+    ..._lastStats.map(s=>`<div class="project-panel" id="panel-${esc(s.projectName)}">${renderProject(s)}</div>`)
+  ].join('') : renderProject(_lastStats[0]);
+
+  const sideItems = isMulti ? [
+    `<div class="sidebar-item comparison active" data-name="__comparison__" onclick="switchTab('__comparison__')">📊 All Projects</div>`,
+    ..._lastStats.map(s=>{const safe=esc(s.projectName);return `<div class="sidebar-item" data-name="${safe}" onclick="switchTab('${safe}')">${safe}</div>`;})
+  ].join('') : '';
+
+  const sidebar = isMulti ? `<nav class="sidebar"><div class="sidebar-header"><h1>🎛 ${esc(title)}</h1><input type="text" class="sidebar-search" placeholder="Search…" oninput="sidebarFilterProjects(this.value)"><div id="sidebar-count" class="sidebar-count">${_lastStats.length} projects</div></div><div class="sidebar-list">${sideItems}</div></nav>` : '';
+  const filterPanel = isMulti ? renderFilterPanel(_lastStats) : '';
+  const mainClass = isMulti ? 'main-content' : 'single-content';
+  const metricsJson = isMulti ? JSON.stringify(buildMetrics(_lastStats)) : '[]';
+
+  // Inline the CSS from the page
+  const cssEl = document.querySelector('style');
+  const inlineCSS = cssEl ? cssEl.textContent : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title>
+<style>${inlineCSS}</style>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"><\/script>
+</head><body>
+${sidebar}${filterPanel}
+<div class="${mainClass}">${panels}</div>
+<script>
+window.PROJECT_METRICS=${metricsJson};
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function renderChartsIn(el){el.querySelectorAll('.deferred-chart:not([data-rendered])').forEach(function(c){try{Plotly.newPlot(c.id,JSON.parse(c.dataset.traces),JSON.parse(c.dataset.layout),{responsive:true,displayModeBar:false});c.dataset.rendered='1';}catch(e){}});}
+window.switchTab=function(name){document.querySelectorAll('.sidebar-item').forEach(function(e){e.classList.remove('active');});var si=document.querySelector('.sidebar-item[data-name="'+CSS.escape(name)+'"]');if(si)si.classList.add('active');document.querySelectorAll('.project-panel').forEach(function(p){p.classList.remove('active');});var panel=document.getElementById('panel-'+name);if(panel){panel.classList.add('active');renderChartsIn(panel);window.scrollTo(0,0);setTimeout(function(){window.dispatchEvent(new Event('resize'));},50);}};
+window.toggleFilterPanel=function(){var p=document.getElementById('filter-panel');if(p)p.classList.toggle('open');};
+window.filterExcludeList=function(q){q=q.toLowerCase();document.querySelectorAll('#exclude-list label').forEach(function(l){l.style.display=(!q||l.textContent.toLowerCase().includes(q))?'':'none';});};
+window.toggleAllExcludes=function(state){document.querySelectorAll('.exclude-cb').forEach(function(cb){cb.checked=state;});};
+function sidebarFilterProjects(q){q=(q||'').toLowerCase();var items=document.querySelectorAll('.sidebar-item:not(.comparison)');var n=0;items.forEach(function(el){var m=!q||el.dataset.name.toLowerCase().includes(q);var f=el.classList.contains('filter-hidden');if(m&&!f){el.classList.remove('hidden');n++;}else el.classList.add('hidden');});var ctr=document.getElementById('sidebar-count');if(ctr)ctr.textContent=n+' / '+items.length+' projects';}
+window.applyFilters=function(){if(!PROJECT_METRICS.length)return;var rk=['tracks','plugins','items','duration','tempo','envelopes','automationPts','sends','midiNotes','midiItems','audioItems','maxDepth','avgFxPerTrack','mutedTracks'];var ranges={};var ac=0;rk.forEach(function(k){var elo=document.querySelector('input[data-filter="'+k+'"][data-bound="min"]');var ehi=document.querySelector('input[data-filter="'+k+'"][data-bound="max"]');ranges[k]={lo:elo?parseFloat(elo.value):null,hi:ehi?parseFloat(ehi.value):null};if(elo&&parseFloat(elo.value)!==parseFloat(elo.min))ac++;if(ehi&&parseFloat(ehi.value)!==parseFloat(ehi.max))ac++;});function chk(id){var e=document.getElementById(id);return e&&e.checked;}var b={ha:chk('flt-has-auto'),hm:chk('flt-has-midi'),r:chk('flt-rendered'),hs:chk('flt-has-sends'),tc:chk('flt-tempo-changes')};Object.values(b).forEach(function(v){if(v)ac++;});var srF=document.getElementById('flt-sr')?.value||'';var verF=document.getElementById('flt-ver')?.value||'';if(srF)ac++;if(verF)ac++;var excl=new Set();document.querySelectorAll('.exclude-cb').forEach(function(cb){if(!cb.checked){excl.add(cb.dataset.project);ac++;}});var vis=new Set();PROJECT_METRICS.forEach(function(m){var pass=!excl.has(m.name);if(pass)rk.forEach(function(k){if(ranges[k].lo!==null&&m[k]<ranges[k].lo)pass=false;if(ranges[k].hi!==null&&m[k]>ranges[k].hi)pass=false;});if(pass&&b.ha&&m.envelopes===0)pass=false;if(pass&&b.hm&&m.midiNotes===0)pass=false;if(pass&&b.r&&!m.rendered)pass=false;if(pass&&b.hs&&m.sends===0)pass=false;if(pass&&b.tc&&m.tempoChanges===0)pass=false;if(pass&&srF&&m.sampleRate!==parseInt(srF))pass=false;if(pass&&verF&&m.version!==verF)pass=false;if(pass)vis.add(m.name);});document.querySelectorAll('.sidebar-item:not(.comparison)').forEach(function(el){vis.has(el.dataset.name||'')?el.classList.remove('filter-hidden','hidden'):el.classList.add('filter-hidden','hidden');});var ctr=document.getElementById('sidebar-count');if(ctr)ctr.textContent=vis.size+' / '+PROJECT_METRICS.length+' projects';var rc=document.getElementById('filter-result-count');if(rc)rc.innerHTML='Showing <strong>'+vis.size+'</strong> / '+PROJECT_METRICS.length+' projects';var badge=document.getElementById('filter-badge');if(badge){badge.textContent=ac;badge.classList.toggle('visible',ac>0);}var sb=document.getElementById('sidebar-search');if(sb&&sb.value)sidebarFilterProjects(sb.value);var tbl=document.querySelector('#panel-__comparison__ .data-table tbody');if(tbl)tbl.querySelectorAll('tr').forEach(function(row){var n=row.querySelector('td')?.textContent.trim()||'';row.style.display=vis.has(n)?'':'none';});};
+window.resetFilters=function(){document.querySelectorAll('input[data-filter]').forEach(function(el){el.value=el.dataset.bound==='min'?el.min:el.max;});['flt-has-auto','flt-has-midi','flt-rendered','flt-has-sends','flt-tempo-changes'].forEach(function(id){var e=document.getElementById(id);if(e)e.checked=false;});['flt-sr','flt-ver'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});toggleAllExcludes(true);applyFilters();};
+document.addEventListener('DOMContentLoaded',function(){var sb=document.getElementById('sidebar-search');if(sb)sb.addEventListener('input',function(){sidebarFilterProjects(this.value);});document.querySelectorAll('input[data-filter]').forEach(function(el){el.addEventListener('keyup',function(e){if(e.key==='Enter')applyFilters();});});var cmp=document.querySelector('.sidebar-item.comparison');if(cmp){cmp.click();return;}renderChartsIn(document.body);});
+<\/script>
+</body></html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'reaper_report.html'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+};
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg){
+  const t=document.createElement('div'); t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), 3500);
+}
+
+// ── File input UI ─────────────────────────────────────────────────────────────
+function updateFileList(files){
+  const listEl=document.getElementById('file-list');
+  const rppFiles=[...files].filter(f=>f.name.toLowerCase().endsWith('.rpp'));
+  if(!rppFiles.length){listEl.style.display='none';return;}
+  listEl.style.display='block';
+  listEl.innerHTML=rppFiles.slice(0,8).map(f=>`<div class="file-list-item">📄 <span>${esc(f.name)}</span></div>`).join('')
+    +(rppFiles.length>8?`<div class="file-list-item" style="color:var(--accent)">…and ${rppFiles.length-8} more</div>`:'');
+  _pendingFiles=rppFiles;
+  document.getElementById('analyze-btn').style.display='block';
+  document.getElementById('analyze-btn').textContent=`Analyze ${rppFiles.length} Project${rppFiles.length!==1?'s':''} →`;
+}
+
+function handleFileInput(e){ updateFileList(e.target.files); }
+
+let _lastStats = null;
+
+window.startAnalysis = async function(){
+  if(!_pendingFiles.length){showToast('No .rpp files selected.');return;}
+  document.getElementById('landing').style.display='none';
+  document.getElementById('progress-overlay').classList.add('active');
+  try{
+    const allStats = await analyzeFiles(_pendingFiles);
+    if(!allStats.length){throw new Error('All files failed to parse.');}
+    _lastStats = allStats;
+    showDashboard(allStats);
+  }catch(e){
+    document.getElementById('progress-overlay').classList.remove('active');
+    document.getElementById('landing').style.display='flex';
+    showToast('Error: '+e.message);
+    console.error(e);
+  }
+};
+
+// ── Drop zone ─────────────────────────────────────────────────────────────────
+function setupDropZone(){
+  const zone=document.getElementById('drop-zone');
+  zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');});
+  zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+  zone.addEventListener('drop',e=>{
+    e.preventDefault(); zone.classList.remove('dragover');
+    const items=[...e.dataTransfer.items];
+    // Collect files recursively using webkitGetAsEntry
+    const files=[];
+    let pending=0;
+    function addEntry(entry){
+      if(entry.isFile){
+        pending++;
+        entry.file(f=>{if(f.name.toLowerCase().endsWith('.rpp'))files.push(f);if(--pending===0)updateFileList(files);});
+      } else if(entry.isDirectory){
+        const reader=entry.createReader();
+        function readEntries(){reader.readEntries(entries=>{if(!entries.length)return;entries.forEach(addEntry);readEntries();});}
+        readEntries();
+      }
+    }
+    if(items.some(it=>it.webkitGetAsEntry)){
+      items.forEach(it=>{const entry=it.webkitGetAsEntry();if(entry)addEntry(entry);});
+      if(!pending) updateFileList(e.dataTransfer.files);
+    } else {
+      updateFileList(e.dataTransfer.files);
+    }
+  });
+  document.getElementById('file-input').addEventListener('change',handleFileInput);
+  document.getElementById('folder-input').addEventListener('change',handleFileInput);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', setupDropZone);
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "reaper-analyzer",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Reaper RPP project analyzer — generates self-contained HTML dashboards",
+  "main": "src/cli.js",
+  "bin": { "reaper-analyzer": "./src/cli.js" },
+  "engines": { "node": ">=18.0.0" },
+  "scripts": {
+    "start": "node src/cli.js"
+  }
+}
