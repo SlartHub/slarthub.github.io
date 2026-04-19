@@ -456,7 +456,7 @@ function analyze(buffer, fileName, fileSize) {
       sumL += left[i + j] * left[i + j];
       sumR += chRight[i + j] * chRight[i + j];
     }
-    powers.push((sumL + sumR) / (2 * block));
+     powers.push(isStereo ? (sumL + sumR) / block : sumL / block);
   }
 
   const absGate = Math.pow(10, (-70 - 0.691) / 10);
